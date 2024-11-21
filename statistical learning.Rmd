@@ -1,0 +1,161 @@
+---
+title: "statistical learning"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+set.seed(11)
+```
+
+## Lasso.
+
+```{r}
+bwt_df = 
+  read_csv("./birthweight.csv") |> 
+  janitor::clean_names() |>
+  mutate(
+    babysex = 
+        case_match(babysex,
+            1 ~ "male",
+            2 ~ "female"
+        ),
+    babysex = fct_infreq(babysex),
+    frace = 
+        case_match(frace,
+            1 ~ "white",
+            2 ~ "black", 
+            3 ~ "asian", 
+            4 ~ "puerto rican", 
+            8 ~ "other"),
+    frace = fct_infreq(frace),
+    mrace = 
+        case_match(mrace,
+            1 ~ "white",
+            2 ~ "black", 
+            3 ~ "asian", 
+            4 ~ "puerto rican",
+            8 ~ "other"),
+    mrace = fct_infreq(mrace),
+    #malform = as.logical(malform)
+    ) |> 
+  sample_n(200)
+```
+
+construct input for glmnet.
+```{r}
+x = model.matrix(bwt ~ ., bwt_df)[,-1]
+y = bwt_df |> pull(bwt)
+```
+
+fit lasso for several lamdas.
+```{r}
+lambda = 10^(seq(-2, 2.75, 0.1))
+
+lasso_fit =
+  glmnet(x, y, lambda = lambda)
+
+lasso_cv =
+  cv.glmnet(x, y, lambda = lambda)
+
+lambda_opt = lasso_cv[["lambda.min"]]
+```
+
+```{r}
+lasso_fit |> 
+  broom::tidy() |> 
+  #select(term, lambda, estimate) |> 
+  #complete(term, lambda, fill = list(estimate = 0) ) |> 
+  filter(term != "(Intercept)") |> 
+  ggplot(aes(x = lambda, y = estimate, group = term, color = term)) + 
+  geom_line()+
+  #geom_path() + 
+  geom_vline(xintercept = lambda_opt, color = "blue", size = 0.6) +
+  theme(legend.position = "none")
+```
+
+```{r}
+final_lasso_fit = 
+  glmnet(x, y, lambda = lambda_opt)
+
+final_lasso_fit |> broom::tidy()
+```
+
+```{r}
+lasso_cv |> 
+  broom::tidy() |> 
+  ggplot(aes(x = log(lambda, 10), y = estimate)) + 
+  geom_point()+
+  theme_minimal()
+```
+
+## pokemon clustering
+
+```{r}
+pokemon_df = 
+  read_csv("./pokemon.csv") |> 
+  janitor::clean_names() |> 
+  select(hp, speed)
+```
+
+```{r}
+pokemon_df |> 
+  ggplot(aes(x = hp, y = speed)) + 
+  geom_point()
+```
+
+use kmeans.
+
+```{r}
+kmeans_fit =
+  kmeans(x = pokemon_df, centers = 4)
+```
+
+```{r}
+pokemon_df =
+  broom::augment(kmeans_fit, pokemon_df)
+
+pokemon_df |> 
+  ggplot(aes(x = hp, y = speed, color = .cluster)) +
+  geom_point()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
